@@ -133,6 +133,7 @@ async function setChat(
     PromptTemplate.fromTemplate(`The following is a friendly conversation between a human and an AI. Your role is to help the human write a description of an image. The human will be asking you what type of description is needed, as well as possibly asking some questions or making corrections if the description is not suitable for their needs. Be helpful and assist as much as you can. If you don't have an answer, simply reply that you cannot help. If the user asks questions beyond your role as an assistant to assist with writing descriptions based on image content, simply state that as an assistant, you cannot help with that task.
       The attached image has the following labels: "${imageLabels.value}" that describe its content. The labels are sorted by relevance, with the first label having the highest probability and the last label having the lowest probability of being included in the image.
       Don't ask too many questions, only the necessary ones. If a human asks you to write a description, proceed without requesting additional information.
+      The human does not know the contents of an image. It is necessary to use the labels provided above. It is important not to ask the human to provide labels or describe what is in the image.
       Current conversation:
       {chat_history}
       Human:
