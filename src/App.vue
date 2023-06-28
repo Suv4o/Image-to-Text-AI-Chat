@@ -129,16 +129,15 @@ async function setChat(
 
   const model = new OpenAI({ openAIApiKey: openAiApiKey.value, temperature: 0.9 })
 
-  const prompt =
-    PromptTemplate.fromTemplate(`The following is a friendly conversation between a human and an AI. Your role is to help the human write a description of an image. The human will be asking you what type of description is needed, as well as possibly asking some questions or making corrections if the description is not suitable for their needs. Be helpful and assist as much as you can. If you don't have an answer, simply reply that you cannot help. If the user asks questions beyond your role as an assistant to assist with writing descriptions based on image content, simply state that as an assistant, you cannot help with that task.
+  const prompt = PromptTemplate.fromTemplate(
+    `The following is a conversation between a human and an AI. Your role is to help the human write a description of an image. The human will be provide details on what the description is needed for, as well as possibly asking some questions or making corrections if the description is not suitable for their needs. Be helpful and assist as much as you can. You must not ask the human questions for more details about the desired description or the elements present in the image. If a human asks you to write a description, proceed without requesting additional information and use the labels provided below. It is important not to ask the human to provide you the labels or describe what is in the image. If you don't have an answer, simply reply that you cannot help. If the user asks questions beyond your role as an assistant to assist with writing image descriptions based on image content, simply state that as an assistant, you cannot help with that task. 
       The attached image has the following labels: "${imageLabels.value}" that describe its content. The labels are sorted by relevance, with the first label having the highest probability and the last label having the lowest probability of being included in the image.
-      Don't ask too many questions, only the necessary ones. If a human asks you to write a description, proceed without requesting additional information.
-      It is necessary to use the labels provided above. It is important not to ask the human to provide labels or describe what is in the image.
       Current conversation:
       {chat_history}
       Human:
       {input}
-      AI:`)
+      AI:`
+  )
 
   const chain = new LLMChain({ llm: model, prompt, memory })
 
