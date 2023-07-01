@@ -363,6 +363,7 @@ async function loadImageLabels() {
             <li>- Write a description for the image.</li>
             <li>- Write an Instagram caption for your image.</li>
             <li>- Write a description for your image's HTML tag alternate text.</li>
+            <li>- The colour of the image.</li>
           </ul>
           Enjoy chatting!
         </p>
