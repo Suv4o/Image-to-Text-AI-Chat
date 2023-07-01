@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { PromptTemplate, AIMessagePromptTemplate } from 'langchain/prompts'
+import { PromptTemplate } from 'langchain/prompts'
 import { LLMChain } from 'langchain/chains'
-import { ConversationSummaryMemory } from 'langchain/memory'
+import { BufferWindowMemory } from 'langchain/memory'
 import { OpenAI } from 'langchain/llms/openai'
 import '@tensorflow/tfjs'
 import '@tensorflow/tfjs-backend-cpu'
@@ -27,6 +27,7 @@ reader.onload = (event) => {
 const messages = reactive<Message[]>([])
 const inputMessage = ref('')
 const isLoading = ref(false)
+const showLoadingIndicator = ref(false)
 const openAiApiKey = ref('')
 const imageUrl = ref('')
 const imageRef = ref(null)
@@ -51,7 +52,7 @@ async function sendChatMessage(event: Event) {
       historySummary: chatHistory.value
     })
     chatHistory.value = chat_history
-    addMessage(text, 'assistant')
+    addMessage(text, 'assistant', messages.length - 1)
     isLoading.value = false
   } catch (error) {
     isLoading.value = false
@@ -59,11 +60,31 @@ async function sendChatMessage(event: Event) {
   }
 }
 
-async function addMessage(message: string, type: string) {
-  messages.push({
-    text: message,
-    type
-  })
+async function passStream(stream: string, type: string, messageNumber: number | null = null) {
+  if (messageNumber != null) {
+    messages[messageNumber] = {
+      text: messages[messageNumber].text + stream,
+      type
+    }
+    await nextTick()
+    if (messagesRef.value) {
+      messagesRef.value.scrollTop = messagesRef.value.scrollHeight
+    }
+  }
+}
+
+async function addMessage(message: string, type: string, messageNumber: number | null = null) {
+  if (messageNumber != null) {
+    messages[messageNumber] = {
+      text: message,
+      type
+    }
+  } else {
+    messages.push({
+      text: message,
+      type
+    })
+  }
   await nextTick()
   if (messagesRef.value) {
     messagesRef.value.scrollTop = messagesRef.value.scrollHeight
@@ -86,6 +107,7 @@ async function onFileChange(file: File) {
     }
     setUrlFromImage(file)
     isLoading.value = true
+    showLoadingIndicator.value = true
     await nextTick()
     await loadImageLabels()
     const { chat_history, text } = await setChat({
@@ -93,41 +115,38 @@ async function onFileChange(file: File) {
       historySummary: ''
     })
     chatHistory.value = chat_history
-    addMessage(text, 'assistant')
+    addMessage(text, 'assistant', messages.length - 1)
   } catch (error) {
     console.error(error)
   } finally {
     isLoading.value = false
+    showLoadingIndicator.value = false
   }
 }
 
 async function setChat(
-  messages = {
+  msg = {
     inputMessageUser: '',
     historySummary: ''
   }
 ) {
-  const memory = new ConversationSummaryMemory({
-    memoryKey: 'chat_history',
-    llm: new OpenAI({
-      openAIApiKey: openAiApiKey.value,
-      modelName: 'gpt-3.5-turbo',
-      temperature: 0
-    })
+  const memory = new BufferWindowMemory({
+    k: 10,
+    memoryKey: 'chat_history'
   })
 
-  if (messages.historySummary) {
+  if (msg.historySummary) {
     await memory.saveContext(
       {
         input: ''
       },
       {
-        output: messages.historySummary
+        output: msg.historySummary
       }
     )
   }
 
-  const model = new OpenAI({ openAIApiKey: openAiApiKey.value, temperature: 0.9 })
+  const model = new OpenAI({ openAIApiKey: openAiApiKey.value, temperature: 0.9, streaming: true })
 
   const prompt = PromptTemplate.fromTemplate(
     `The following is a conversation between a human and an AI. Your role is to help the human write a description of an image. The human will be provide details on what the description is needed for, as well as possibly asking some questions or making corrections if the description is not suitable for their needs. Be helpful and assist as much as you can. You must not ask the human questions for more details about the desired description or the elements present in the image. If a human asks you to write a description, proceed without requesting additional information and use the labels provided below. It is important not to ask the human to provide you the labels or describe what is in the image. If you don't have an answer, simply reply that you cannot help. If the user asks questions beyond your role as an assistant to assist with writing image descriptions based on image content, simply state that as an assistant, you cannot help with that task. 
@@ -141,9 +160,24 @@ async function setChat(
 
   const chain = new LLMChain({ llm: model, prompt, memory })
 
-  const response = await chain.call({
-    input: messages.inputMessageUser
-  })
+  let hasNewMessageBeenSet = false
+
+  const response = await chain.call(
+    {
+      input: msg.inputMessageUser
+    },
+    [
+      {
+        handleLLMNewToken(token: string) {
+          if (!hasNewMessageBeenSet) {
+            addMessage(token, 'assistant')
+            hasNewMessageBeenSet = true
+          }
+          passStream(token, 'assistant', messages.length - 1)
+        }
+      }
+    ]
+  )
 
   return {
     ...(await memory.loadMemoryVariables({})),
@@ -251,7 +285,7 @@ async function loadImageLabels() {
           </div>
         </div>
       </div>
-      <div v-if="isLoading" class="flex justify-center mx-1 my-4">
+      <div v-if="isLoading && showLoadingIndicator" class="flex justify-center mx-1 my-4">
         <img :src="loaderSvg" class="h-12 w-12" alt="loading" />
       </div>
       <form @submit="sendChatMessage" class="relative px-1 mb-8">
