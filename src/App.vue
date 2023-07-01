@@ -325,6 +325,17 @@ async function loadImageLabels() {
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <div class="mx-auto max-w-3xl h-[100vh] flex flex-col justify-end py-4">
       <div ref="messagesRef" class="overflow-y-scroll">
+        <p v-if="!imageUrl" class="text-2xl mb-8 text-blue-700">
+          This is a friendly AI assistant to help you describe your image. To begin, simply add your
+          Open AI api key at the bottom of the page and then attach your image. Once the image has
+          been analysed, you can start talking with the assistant. You can ask the assistant to:
+          <ul class="list-decimal my-3">
+            <li>- Write a description for the image.</li>
+            <li>- Write an Instagram caption for your image.</li>
+            <li>- Write a description for your image's HTML tag alternate text.</li>
+          </ul>
+          Enjoy chatting!
+        </p>
         <div class="mb-4 mx-1 mt-1 flex justify-center">
           <v-file-drop @change="onFileChange" ref="inputFileRef">
             <div
