@@ -36,6 +36,14 @@ const messagesRef = ref<HTMLDivElement>()
 const imageLabels = ref('')
 const chatHistory = ref('')
 
+function reset() {
+  messages.splice(0, messages.length)
+  inputMessage.value = ''
+  imageUrl.value = ''
+  imageLabels.value = ''
+  chatHistory.value = ''
+}
+
 async function sendChatMessage(event: Event) {
   event.preventDefault()
   try {
@@ -99,6 +107,7 @@ function setUrlFromImage(file: File) {
 
 async function onFileChange(file: File) {
   try {
+    reset()
     if (!openAiApiKey.value) {
       alert('Please enter your OpenAI API key')
       const input = inputFileRef.value.$el.querySelector('input')
