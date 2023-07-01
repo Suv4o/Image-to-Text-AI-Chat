@@ -5,6 +5,7 @@ This is a friendly AI assistant to help you describe your image. To begin, simpl
 - Write a description for the image.
 - Write an Instagram caption for your image.
 - Write a description for your image's HTML tag alternate text.
+- The colour of the image.
 
 Enjoy chatting!
 

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+//@ts-ignore
+import { extractColors } from 'extract-colors'
+import { GetColorName } from 'hex-color-to-color-name';
 import { PromptTemplate } from 'langchain/prompts'
 import { MultiPromptChain } from 'langchain/chains'
 import { BufferWindowMemory } from 'langchain/memory'
@@ -35,6 +38,7 @@ const inputFileRef = ref()
 const messagesRef = ref<HTMLDivElement>()
 const imageLabels = ref('')
 const chatHistory = ref('')
+const imageColors = ref('')
 
 function reset() {
   messages.splice(0, messages.length)
@@ -162,13 +166,14 @@ async function setChat(
     streaming: true
   })
 
-  const promptNames = ['content', 'general-description', 'instagram-capture', 'seo-description']
+  const promptNames = ['content', 'general-description', 'instagram-capture', 'seo-description', 'color-palette']
 
   const promptDescriptions = [
     'Good for answering questions about what is in the image',
     'Good for writing general description of the image',
     'Good for writing instagram capture of the image',
-    'Good for writing description of the image for visually impaired people or for SEO purposes'
+    'Good for writing description of the image for visually impaired people or for SEO purposes',
+    'Good for getting the color palette of the image'
   ]
 
   const promptContent =
@@ -215,11 +220,20 @@ async function setChat(
       {input}
       AI:`)
 
+  const promptColorPalette =
+    PromptTemplate.fromTemplate(`The following is a conversation between a human and an AI. Your role is to assist the human to to tell the colors in that are included in the image using your own description. The image has been attached and its dominant colors are "${imageColors.value}.” Assist with a short summary with your imagination on how the colors blend into the image. As an assistant, you should not ask the human to identify the colors in an image. Your role is to assist the human without asking for any additional details.
+      Current conversation:
+      {chat_history}
+      Human:
+      {input}
+      AI:`)
+
   const promptTemplates = [
     promptContent,
     promptGeneralDescription,
     promptInstagramDescription,
-    promptSeo
+    promptSeo,
+    promptColorPalette
   ]
 
   const chain = MultiPromptChain.fromLLMAndPrompts(model, {
@@ -273,6 +287,13 @@ async function loadImageLabels() {
     'zero-shot-image-classification',
     'Xenova/clip-vit-base-patch32'
   )
+
+  // Colors in the image
+  const extractedColors = await extractColors(imageUrl.value)
+  imageColors.value = extractedColors.map((color: any) => {
+    return GetColorName(color.hex)
+  }).join(', ')
+  
 
   // Image labels from GPT 2 Image Captioning
   const imageCapture = await imageToText(imageUrl.value)
