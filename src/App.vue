@@ -146,7 +146,12 @@ async function setChat(
     )
   }
 
-  const model = new OpenAI({ openAIApiKey: openAiApiKey.value, temperature: 0.9, streaming: true })
+  const model = new OpenAI({
+    openAIApiKey: openAiApiKey.value,
+    modelName: 'gpt-3.5-turbo-0613',
+    temperature: 0.9,
+    streaming: true
+  })
 
   const prompt = PromptTemplate.fromTemplate(
     `The following is a conversation between a human and an AI. Your role is to help the human write a description of an image. The human will be provide details on what the description is needed for, as well as possibly asking some questions or making corrections if the description is not suitable for their needs. Be helpful and assist as much as you can. You must not ask the human questions for more details about the desired description or the elements present in the image. If a human asks you to write a description, proceed without requesting additional information and use the labels provided below. It is important not to ask the human to provide you the labels or describe what is in the image. If you don't have an answer, simply reply that you cannot help. If the user asks questions beyond your role as an assistant to assist with writing image descriptions based on image content, simply state that as an assistant, you cannot help with that task. 
@@ -195,7 +200,11 @@ async function loadImageLabels() {
   // Image labels from GPT 2 Image Captioning
   const imageCapture = await imageToText(imageUrl.value)
 
-  const model = new OpenAI({ openAIApiKey: openAiApiKey.value, temperature: 0 })
+  const model = new OpenAI({
+    openAIApiKey: openAiApiKey.value,
+    modelName: 'gpt-3.5-turbo-0613',
+    temperature: 0
+  })
 
   const labelsFromImageCapture = await model.call(
     `Extract only the nouns and verbs from the following text: "${imageCapture[0].generated_text}". Output them as a single array of strings in JavaScript format, such as ["noun1", "noun2", "verb1", "verb2"]. Only one array should be returned.`
