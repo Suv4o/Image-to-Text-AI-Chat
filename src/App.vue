@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { PromptTemplate } from 'langchain/prompts'
-import { LLMChain } from 'langchain/chains'
+import { MultiPromptChain } from 'langchain/chains'
 import { BufferWindowMemory } from 'langchain/memory'
 import { OpenAI } from 'langchain/llms/openai'
 import '@tensorflow/tfjs'
@@ -111,7 +111,7 @@ async function onFileChange(file: File) {
     await nextTick()
     await loadImageLabels()
     const { chat_history, text } = await setChat({
-      inputMessageUser: 'Hello!',
+      inputMessageUser: 'Hello! I attached an image for you to assist me.',
       historySummary: ''
     })
     chatHistory.value = chat_history
@@ -153,19 +153,78 @@ async function setChat(
     streaming: true
   })
 
-  const prompt = PromptTemplate.fromTemplate(
-    `The following is a conversation between a human and an AI. Your role is to help the human write a description of an image. The human will be provide details on what the description is needed for, as well as possibly asking some questions or making corrections if the description is not suitable for their needs. Be helpful and assist as much as you can. You must not ask the human questions for more details about the desired description or the elements present in the image. If a human asks you to write a description, proceed without requesting additional information and use the labels provided below. It is important not to ask the human to provide you the labels or describe what is in the image. If you don't have an answer, simply reply that you cannot help. If the user asks questions beyond your role as an assistant to assist with writing image descriptions based on image content, simply state that as an assistant, you cannot help with that task. 
-      The attached image has the following labels: "${imageLabels.value}" that describe its content. The labels are sorted by relevance, with the first label having the highest probability and the last label having the lowest probability of being included in the image.
+  const promptNames = ['content', 'general-description', 'instagram-capture', 'seo-description']
+
+  const promptDescriptions = [
+    'Good for answering questions about what is in the image',
+    'Good for writing general description of the image',
+    'Good for writing instagram capture of the image',
+    'Good for writing description of the image for visually impaired people or for SEO purposes'
+  ]
+
+  const promptContent =
+    PromptTemplate.fromTemplate(`The following is a conversation between a human and an AI. Your role is to tell the human what is in the image the human attached. The attached image has been labeled with "${imageLabels.value}" to describe its content. These labels are sorted by relevance, with the first label having the highest probability and the last label having the lowest probability of being included in the image.
+      If the human ask to describe what is in the image, you must provide a summary based on my knowledge of the labels provided. If the human ask if a certain subject or activity is in the image, you must answer with yes or no, and if you are not sure, you will indicate that based on your knowledge, you not sure if it is in the image.
+      Please note that the human may provide additional corrections on what is in the image, and you must listen to and incorporate those suggestions as needed.
+      You must not ask the human questions for more details about the desired description or the elements present in the image. If a human asks you to write a description, proceed without requesting additional information and use the labels provided below. It is important not to ask the human to provide you the labels or describe what is in the image.
+      If the Human asks about the content and does not specify that it is for the attached image, you must assume that it is for the image above. Do not ask any additional questions. Simply write the description or caption using the labels.
       Current conversation:
       {chat_history}
       Human:
       {input}
-      AI:`
-  )
+      AI:`)
 
-  const chain = new LLMChain({ llm: model, prompt, memory })
+  const promptGeneralDescription =
+    PromptTemplate.fromTemplate(`The following is a conversation between a human and an AI. Your role is to help the human write a description of an image. The human will be provide details on what the description is needed for, as well as possibly asking some questions or making corrections if the description is not suitable for their needs. Be helpful and assist as much as you can. You must not ask the human questions for more details about the desired description or the elements present in the image. If a human asks you to write a description, proceed without requesting additional information and use the labels provided below. It is important not to ask the human to provide you the labels or describe what is in the image. If you don't have an answer, simply reply that you cannot help. If the user asks questions beyond your role as an assistant to assist with writing image descriptions based on image content, simply state that as an assistant, you cannot help with that task.
+      The attached image has the following labels: "${imageLabels.value}" that describe its content. The labels are sorted by relevance, with the first label having the highest probability and the last label having the lowest probability of being included in the image.
+      If the Human asks to write a description or caption and does not specify that it is for the attached image, you must assume that it is for the image above. Do not ask any additional questions. Simply write the description or caption using the labels.
+      Current conversation:
+      {chat_history}
+      Human:
+      {input}
+      AI:`)
+
+  const promptInstagramDescription =
+    PromptTemplate.fromTemplate(`The following is a conversation between a human and an AI. Your role is to assist the human write a a captivating Instagram caption for an image. The attached image has the following labels: "${imageLabels.value}" that describe its content. The labels are sorted by relevance, with the first label having the highest probability and the last label having the lowest probability of being included in the image. If the human asks for corrections, please reply with the necessary corrections. Adding Instagram hashtags at the end of the caption is also a good idea.
+      You must not ask the human questions to provide lables of more details about the desired description or the elements present in the image. If a human asks you to write a description, proceed without requesting additional information and use the labels provided below. It is important not to ask the human to provide you the labels or describe what is in the image.
+      If the Human asks to write a caption and does not specify that it is for the attached image, you must assume that it is for the image above. You must not ask any additional questions. You also must not ask specific details about the image. Simply write the description or caption using the labels for the image provided. The capture will be for the image above.
+      Current conversation:
+      {chat_history}
+      Human:
+      {input}
+      AI:`)
+
+  const promptSeo =
+    PromptTemplate.fromTemplate(`The following is a conversation between a human and an AI. Your role is to assist the human to write alternation text for an image HTML <img/> alt attribute. The image has been attached and has been labeled with "${imageLabels.value}" to describe its content. These labels are sorted by relevance, with the first label having the highest probability and the last label having the lowest probability of being included in the image.
+      Write a brief description that will be added in the alt tag to describe the image for visually impaired individuals, allowing screen readers to provide a description of the contents. This is also beneficial for SEO purposes when individuals search on the web.
+      Please note that the human may provide additional corrections on what is in the image, and you must listen to and incorporate those suggestions as needed.
+      You must not ask the human questions for more details about the desired description or the elements present in the image. If a human asks you to write a description, proceed without requesting additional information and use the labels provided below. It is important not to ask the human to provide you the labels or describe what is in the image.
+      If the Human asks to write alternation description and does not specify that it is for the attached image, you must assume that it is for the image above. Do not ask any additional questions. Simply write the description or caption using the labels.
+      Current conversation:
+      {chat_history}
+      Human:
+      {input}
+      AI:`)
+
+  const promptTemplates = [
+    promptContent,
+    promptGeneralDescription,
+    promptInstagramDescription,
+    promptSeo
+  ]
+
+  const chain = MultiPromptChain.fromLLMAndPrompts(model, {
+    promptNames,
+    promptDescriptions,
+    promptTemplates,
+    llmChainOpts: {
+      memory
+    }
+  })
 
   let hasNewMessageBeenSet = false
+  let startStreaming = false
+  const streamArray: String[] = []
 
   const response = await chain.call(
     {
@@ -174,11 +233,20 @@ async function setChat(
     [
       {
         handleLLMNewToken(token: string) {
-          if (!hasNewMessageBeenSet) {
-            addMessage(token, 'assistant')
-            hasNewMessageBeenSet = true
+          streamArray.push(token)
+          if (
+            streamArray[streamArray.length - 1] === '' &&
+            streamArray[streamArray.length - 2] === ''
+          ) {
+            startStreaming = true
           }
-          passStream(token, 'assistant', messages.length - 1)
+          if (startStreaming) {
+            if (!hasNewMessageBeenSet) {
+              addMessage(token, 'assistant')
+              hasNewMessageBeenSet = true
+            }
+            passStream(token, 'assistant', messages.length - 1)
+          }
         }
       }
     ]
