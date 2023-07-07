@@ -151,7 +151,7 @@ async function setChat(
   if (msg.historySummary) {
     await memory.saveContext(
       {
-        input: ''
+        input: msg.inputMessageUser
       },
       {
         output: msg.historySummary
@@ -199,8 +199,8 @@ async function setChat(
       AI:`)
 
   const promptInstagramDescription =
-    PromptTemplate.fromTemplate(`The following is a conversation between a human and an AI. Your role is to assist the human write a a captivating Instagram caption for an image. The attached image has the following labels: "${imageLabels.value}" that describe its content. The labels are sorted by relevance, with the first label having the highest probability and the last label having the lowest probability of being included in the image. If the human asks for corrections, please reply with the necessary corrections. Adding Instagram hashtags at the end of the caption is also a good idea.
-      You must not ask the human questions to provide lables of more details about the desired description or the elements present in the image. If a human asks you to write a description, proceed without requesting additional information and use the labels provided below. It is important not to ask the human to provide you the labels or describe what is in the image.
+    PromptTemplate.fromTemplate(`The following is a conversation between a human and an AI. Your role is to assist the human write a a captivating Instagram caption for an image. The attached image has the following labels: "${imageLabels.value}" that describe its content. The labels are sorted by relevance, with the first label having the highest probability and the last label having the lowest probability of being included in the image. If the human asks for corrections, please reply with the necessary corrections. Adding emojis can add a personal touch to the capture. Adding Instagram hashtags at the end of the caption is also a good idea.
+      You must not ask the human questions to provide labels of more details about the desired description or the elements present in the image. If a human asks you to write a description, proceed without requesting additional information and use the labels provided below. It is important not to ask the human to provide you the labels or describe what is in the image.
       If the Human asks to write a caption and does not specify that it is for the attached image, you must assume that it is for the image above. You must not ask any additional questions. You also must not ask specific details about the image. Simply write the description or caption using the labels for the image provided. The capture will be for the image above.
       Current conversation:
       {chat_history}
@@ -341,13 +341,13 @@ async function loadImageLabels() {
 
   const scoresPredictions = await classifier(imageUrl.value, predictedLabels)
   const scoresPredictionsSorted = scoresPredictions.sort((a: any, b: any) => b.score - a.score)
-  const scoresPredictionsSortedTop5 = scoresPredictionsSorted.slice(0, 5)
+  const scoresPredictionsSortedTop = scoresPredictionsSorted.slice(0, 3)
 
-  const scoresPredictionsSortedTop5String = scoresPredictionsSortedTop5
+  const scoresPredictionsSortedTopString = scoresPredictionsSortedTop
     .map((prediction: any) => prediction.label)
     .join(', ')
 
-  imageLabels.value = scoresPredictionsSortedTop5String
+  imageLabels.value = scoresPredictionsSortedTopString
 }
 </script>
 

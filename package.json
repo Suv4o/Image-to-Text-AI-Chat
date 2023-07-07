@@ -21,7 +21,7 @@
     "@xenova/transformers": "^2.3.0",
     "extract-colors": "^3.0.0",
     "hex-color-to-color-name": "^1.0.2",
-    "langchain": "^0.0.96",
+    "langchain": "^0.0.104",
     "v-file-drop": "^0.2.1",
     "vue": "^3.3.4"
   },
