@@ -5,7 +5,7 @@ import { GetColorName } from 'hex-color-to-color-name';
 import { PromptTemplate } from 'langchain/prompts'
 import { MultiPromptChain } from 'langchain/chains'
 import { BufferWindowMemory } from 'langchain/memory'
-import { OpenAI } from 'langchain/llms/openai'
+import { OpenAI, OpenAIChat } from 'langchain/llms/openai'
 import '@tensorflow/tfjs'
 import '@tensorflow/tfjs-backend-cpu'
 import '@tensorflow/tfjs-backend-webgl'
@@ -159,10 +159,10 @@ async function setChat(
     )
   }
 
-  const model = new OpenAI({
+  const model = new OpenAIChat({
     openAIApiKey: openAiApiKey.value,
     modelName: 'gpt-3.5-turbo-0613',
-    temperature: 0.9,
+    temperature: 1,
     streaming: true
   })
 
@@ -363,7 +363,6 @@ async function loadImageLabels() {
             <li>- Write a description for the image.</li>
             <li>- Write an Instagram caption for your image.</li>
             <li>- Write a description for your image's HTML tag alternate text.</li>
-            <li>- Tell the colours of the image.</li>
           </ul>
           Enjoy chatting!
         </p>
