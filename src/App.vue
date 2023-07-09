@@ -341,7 +341,7 @@ async function loadImageLabels() {
 
   const scoresPredictions = await classifier(imageUrl.value, predictedLabels)
   const scoresPredictionsSorted = scoresPredictions.sort((a: any, b: any) => b.score - a.score)
-  const scoresPredictionsSortedTop = scoresPredictionsSorted.slice(0, 3)
+  const scoresPredictionsSortedTop = scoresPredictionsSorted.slice(0, 4)
 
   const scoresPredictionsSortedTopString = scoresPredictionsSortedTop
     .map((prediction: any) => prediction.label)
