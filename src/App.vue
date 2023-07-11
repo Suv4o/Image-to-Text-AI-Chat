@@ -1,7 +1,8 @@
 <script setup lang="ts">
-//@ts-ignore
+// @ts-ignore
 import { extractColors } from 'extract-colors'
-import { GetColorName } from 'hex-color-to-color-name';
+import { GetColorName } from 'hex-color-to-color-name'
+import { HfInference } from '@huggingface/inference'
 import { PromptTemplate } from 'langchain/prompts'
 import { MultiPromptChain } from 'langchain/chains'
 import { BufferWindowMemory } from 'langchain/memory'
@@ -13,6 +14,7 @@ import * as mobilenet from '@tensorflow-models/mobilenet'
 import * as cocoSsd from '@tensorflow-models/coco-ssd'
 import loaderSvg from './assets/svgs/loader.svg'
 import { pipeline } from '@xenova/transformers'
+import { SpeakerWaveIcon } from '@heroicons/vue/20/solid'
 import { ref, reactive, nextTick } from 'vue'
 
 interface Message {
@@ -39,6 +41,10 @@ const messagesRef = ref<HTMLDivElement>()
 const imageLabels = ref('')
 const chatHistory = ref('')
 const imageColors = ref('')
+const audioButtonsRefs = reactive<any[]>([])
+
+const HF_ACCESS_TOKEN = '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'
+const inference = new HfInference(HF_ACCESS_TOKEN)
 
 function reset() {
   messages.splice(0, messages.length)
@@ -85,6 +91,43 @@ async function passStream(stream: string, type: string, messageNumber: number | 
   }
 }
 
+async function playAudio(index: number) {
+  const audioElement = document.getElementById(`speech-${index}`) as HTMLDivElement
+  const audioTag = audioElement.querySelector('audio')
+  if (audioTag) {
+    audioTag.play()
+  }
+}
+
+async function setAudioSpeech(message: string, index: number) {
+  try {
+    if (audioButtonsRefs[index]) {
+      audioButtonsRefs[index].disabled = true
+    }
+    const audioSpeech = await inference
+      .textToSpeech({
+        model: 'espnet/kan-bayashi_ljspeech_vits',
+        inputs: message
+      })
+      .catch(() => {
+        return
+      })
+    if (audioSpeech) {
+      const audio = new Audio()
+      audio.controls = true
+      const audioElement = document.getElementById(`speech-${index}`) as HTMLDivElement
+      const audioTag = audioElement.appendChild(audio)
+      const source = document.createElement('source')
+      audioTag.appendChild(source)
+      source.src = URL.createObjectURL(audioSpeech)
+      source.type = 'audio/flac'
+      audioButtonsRefs[index].disabled = false
+    }
+  } catch (error) {
+    console.error(error)
+  }
+}
+
 async function addMessage(message: string, type: string, messageNumber: number | null = null) {
   if (messageNumber != null) {
     messages[messageNumber] = {
@@ -97,6 +140,11 @@ async function addMessage(message: string, type: string, messageNumber: number |
       type
     })
   }
+
+  if (type === 'assistant') {
+    await setAudioSpeech(message, messages.length - 1)
+  }
+
   await nextTick()
   if (messagesRef.value) {
     messagesRef.value.scrollTop = messagesRef.value.scrollHeight
@@ -166,7 +214,13 @@ async function setChat(
     streaming: true
   })
 
-  const promptNames = ['content', 'general-description', 'instagram-capture', 'seo-description', 'color-palette']
+  const promptNames = [
+    'content',
+    'general-description',
+    'instagram-capture',
+    'seo-description',
+    'color-palette'
+  ]
 
   const promptDescriptions = [
     'Good for answering questions about what is in the image',
@@ -290,10 +344,11 @@ async function loadImageLabels() {
 
   // Colors in the image
   const extractedColors = await extractColors(imageUrl.value)
-  imageColors.value = extractedColors.map((color: any) => {
-    return GetColorName(color.hex)
-  }).join(', ')
-  
+  imageColors.value = extractedColors
+    .map((color: any) => {
+      return GetColorName(color.hex)
+    })
+    .join(', ')
 
   // Image labels from GPT 2 Image Captioning
   const imageCapture = await imageToText(imageUrl.value)
@@ -355,7 +410,7 @@ async function loadImageLabels() {
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <div class="mx-auto max-w-3xl h-[100vh] flex flex-col justify-end py-4">
       <div ref="messagesRef" class="overflow-y-scroll">
-        <p v-if="!imageUrl" class="text-2xl mb-8 text-blue-700">
+        <div v-if="!imageUrl" class="text-2xl mb-8 text-blue-700">
           This is a friendly AI assistant to help you describe your image. To begin, simply add your
           Open AI api key at the bottom of the page and then attach your image. Once the image has
           been analysed, you can start talking with the assistant. You can ask the assistant to:
@@ -365,7 +420,7 @@ async function loadImageLabels() {
             <li>- Write a description for your image's HTML tag alternate text.</li>
           </ul>
           Enjoy chatting!
-        </p>
+        </div>
         <div class="mb-4 mx-1 mt-1 flex justify-center">
           <v-file-drop @change="onFileChange" ref="inputFileRef">
             <div
@@ -392,14 +447,25 @@ async function loadImageLabels() {
               message.type === 'assistant' && 'bg-white ring-1 ring-blue-700'
             ]"
           >
-            <p
-              v-html="message.text.replace(/\n/g, '<br />').replace('<br />', '')"
-              class="sm:text-xl leading-6 [&_a]:font-bold [&_a]:text-blue-800"
-              :class="[
-                message.type === 'user' && 'text-white',
-                message.type === 'assistant' && 'text-blue-700'
-              ]"
-            ></p>
+            <div class="relative pr-8">
+              <p
+                v-html="message.text.replace(/\n/g, '<br />').replace('<br />', '')"
+                class="sm:text-xl leading-6 [&_a]:font-bold [&_a]:text-blue-800"
+                :class="[
+                  message.type === 'user' && 'text-white',
+                  message.type === 'assistant' && 'text-blue-700'
+                ]"
+              ></p>
+              <button
+                v-if="message.type === 'assistant'"
+                :ref="(el) => (audioButtonsRefs[index] = el)"
+                @click="playAudio(index)"
+                class="absolute bg-white border-blue-700 border p-1 rounded-full top-1 -right-3 disabled:cursor-not-allowed disabled:grayscale disabled:opacity-50"
+              >
+                <SpeakerWaveIcon class="h-6 w-6 text-blue-700" />
+              </button>
+              <div :id="`speech-${index}`" class="absolute h-0 w-0 invisible"></div>
+            </div>
           </div>
         </div>
       </div>
